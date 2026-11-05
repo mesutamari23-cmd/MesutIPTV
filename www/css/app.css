@@ -40,3 +40,13 @@ label{display:block;margin:12px 0 4px;color:var(--mut);font-size:.9rem}
 border-radius:12px;background:#1d1d44;border:1px solid var(--line);text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
 #toast.on{opacity:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.ch{display:flex;align-items:center;gap:12px;padding:8px 10px;margin:6px 0;border-radius:14px;background:var(--glass);border:1px solid var(--line);cursor:pointer}
+.ch img{width:44px;height:44px;border-radius:10px;object-fit:contain;background:#ffffff10;flex:none}
+.ch .nm{flex:1;min-width:0}.ch .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch .nm span{font-size:.8rem;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.star{border:0;background:none;font-size:1.4rem;color:var(--mut);min-width:44px;min-height:44px;cursor:pointer}
+.star.on{color:var(--gold)}
+.bar{display:flex;gap:8px;margin:10px 0}
+.bar select{flex:1}
+.bar .btn{flex:none}
