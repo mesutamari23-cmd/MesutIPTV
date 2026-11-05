@@ -31,3 +31,6 @@ const I18N = {
 Object.assign(I18N.ar,{all:"الكل",favs:"المفضلة",more:"عرض المزيد",noData:"لا توجد بيانات. حدّث المصدر من إدارة المصادر.",noPlayer:"المشغل متاح داخل تطبيق Android فقط",playErr:"تعذّر تشغيل هذا الرابط",continueW:"متابعة المشاهدة",nothing:"لا نتائج",group:"الفئة"});
 Object.assign(I18N.fr,{all:"Tout",favs:"Favoris",more:"Afficher plus",noData:"Aucune donnée. Actualisez la source dans Gérer les sources.",noPlayer:"Le lecteur n'est disponible que dans l'app Android",playErr:"Lecture impossible pour ce lien",continueW:"Reprendre la lecture",nothing:"Aucun résultat",group:"Catégorie"});
 Object.assign(I18N.en,{all:"All",favs:"Favorites",more:"Show more",noData:"No data. Refresh the source in Manage sources.",noPlayer:"The player is only available in the Android app",playErr:"Could not play this link",continueW:"Continue watching",nothing:"No results",group:"Category"});
+Object.assign(I18N.ar,{reimport:"هذا المصدر ملف مستورد: اضغط تعديل ثم اختر الملف من جديد واحفظ"});
+Object.assign(I18N.fr,{reimport:"Source importée depuis un fichier : cliquez sur Modifier, rechoisissez le fichier puis enregistrez"});
+Object.assign(I18N.en,{reimport:"This source is an imported file: tap Edit, pick the file again and save"});
