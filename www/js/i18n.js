@@ -27,3 +27,7 @@ const I18N = {
     version:"Version", aboutTxt:"Mesut IPTV is a player only: it ships with no channels or subscriptions. Use sources you are authorized to use.", type:"Type", manage:"Manage sources",
     refreshed:"Source refreshed", soon:"Coming in the next step", fileLoaded:"File loaded", channels:"channels"}
 };
+
+Object.assign(I18N.ar,{all:"الكل",favs:"المفضلة",more:"عرض المزيد",noData:"لا توجد بيانات. حدّث المصدر من إدارة المصادر.",noPlayer:"المشغل متاح داخل تطبيق Android فقط",playErr:"تعذّر تشغيل هذا الرابط",continueW:"متابعة المشاهدة",nothing:"لا نتائج",group:"الفئة"});
+Object.assign(I18N.fr,{all:"Tout",favs:"Favoris",more:"Afficher plus",noData:"Aucune donnée. Actualisez la source dans Gérer les sources.",noPlayer:"Le lecteur n'est disponible que dans l'app Android",playErr:"Lecture impossible pour ce lien",continueW:"Reprendre la lecture",nothing:"Aucun résultat",group:"Catégorie"});
+Object.assign(I18N.en,{all:"All",favs:"Favorites",more:"Show more",noData:"No data. Refresh the source in Manage sources.",noPlayer:"The player is only available in the Android app",playErr:"Could not play this link",continueW:"Continue watching",nothing:"No results",group:"Category"});

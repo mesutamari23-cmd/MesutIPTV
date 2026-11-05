@@ -4,6 +4,29 @@ const Store = {
   del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
 
+const DB = {
+  _db: null,
+  open() {
+    if (this._db) return this._db;
+    this._db = new Promise((res, rej) => {
+      const r = indexedDB.open("mesut", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return this._db;
+  },
+  async tx(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction("kv", mode), rq = fn(t.objectStore("kv"));
+      t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error);
+    });
+  },
+  get(k) { return this.tx("readonly", st => st.get(k)); },
+  put(k, v) { return this.tx("readwrite", st => st.put(v, k)); },
+  del(k) { return this.tx("readwrite", st => st.delete(k)); }
+};
+
 const Sources = {
   all() { return Store.get("sources", []); },
   save(list) { return Store.set("sources", list); },
@@ -12,7 +35,7 @@ const Sources = {
     if (i >= 0) list[i] = src; else list.push(src);
     return this.save(list);
   },
-  remove(id) { this.save(this.all().filter(s => s.id !== id)); Store.del("m3u:" + id); }
+  remove(id) { this.save(this.all().filter(s => s.id !== id)); DB.del("ch:" + id).catch(() => {}); }
 };
 
 function validUrl(u) { try { const x = new URL(u); return x.protocol === "http:" || x.protocol === "https:"; } catch (e) { return false; } }
@@ -26,7 +49,7 @@ function parseM3U(text) {
       const attr = k => { const m = line.match(new RegExp(k + '="([^"]*)"', "i")); return m ? m[1] : ""; };
       cur = { name: line.includes(",") ? line.slice(line.lastIndexOf(",") + 1).trim() : "", logo: attr("tvg-logo"),
               group: attr("group-title"), tvgId: attr("tvg-id") };
-    } else if (!line.startsWith("#") && cur) { cur.url = line; out.push(cur); cur = null; }
+    } else if (!line.startsWith("#") && cur) { cur.url = line; cur.t = /\/movie\//i.test(line) ? "movie" : /\/series\//i.test(line) ? "series" : "live"; out.push(cur); cur = null; }
   }
   return out;
 }
@@ -48,11 +71,10 @@ async function refreshSource(s) {
     return { updated: Date.now(), expires: j.user_info.exp_date || null };
   }
   if (s.type === "m3u") {
-    const text = s.url ? await fetchText(s.url) : Store.get("m3u:" + s.id, "");
-    const n = parseM3U(text).length;
-    if (!n) throw new Error("empty");
-    if (s.url) Store.set("m3u:" + s.id, text.length < 3e6 ? text : "");
-    return { updated: Date.now(), count: n };
+    const items = s.url ? parseM3U(await fetchText(s.url)) : ((await DB.get("ch:" + s.id)) || []);
+    if (!items.length) throw new Error("empty");
+    await DB.put("ch:" + s.id, items);
+    return { updated: Date.now(), count: items.length };
   }
   if (s.type === "epg") {
     const text = await fetchText(s.url);

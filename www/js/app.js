@@ -26,12 +26,74 @@ function emptyState() {
   <button class="btn pri" data-go="sources">${t("addSource")}</button></section>`;
 }
 
+let LIB = null, favs = new Set(Store.get("favs", [])), V = { group: "", q: "", n: 100, rows: [] };
+const KIND = { live: "live", movies: "movie", series: "series" };
+
+async function loadLib() {
+  if (LIB) return LIB;
+  LIB = { live: [], movie: [], series: [] };
+  for (const s of Sources.all()) {
+    if (s.type !== "m3u") continue;
+    try { for (const it of ((await DB.get("ch:" + s.id)) || [])) (LIB[it.t] || LIB.live).push(it); } catch (e) {}
+  }
+  return LIB;
+}
+
+const rowHtml = (it, i) => `<div class="ch" data-i="${i}"><img loading="lazy" alt="" src="${esc(it.logo)}" onerror="this.style.visibility='hidden'">
+  <div class="nm"><b>${esc(it.name)}</b><span>${esc(it.group || "")}</span></div>
+  <button class="star ${favs.has(it.url) ? "on" : ""}" data-fav="${i}" aria-label="${t("favs")}">${favs.has(it.url) ? "★" : "☆"}</button></div>`;
+
+function paintRows() {
+  const box = $("#list"); if (!box) return;
+  const shown = V.rows.slice(0, V.n);
+  box.innerHTML = shown.length ? shown.map(rowHtml).join("") + (V.rows.length > V.n ? `<div class="row" style="justify-content:center"><button class="btn" data-act="more">${t("more")} (${V.rows.length - V.n})</button></div>` : "")
+    : `<p class="mut empty">${t("nothing")}</p>`;
+}
+
+function filterRows(kind) {
+  const q = V.q.toLowerCase();
+  let rows = LIB[kind];
+  if (V.group === "__fav") rows = rows.filter(r => favs.has(r.url));
+  else if (V.group) rows = rows.filter(r => r.group === V.group);
+  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q));
+  V.rows = rows; paintRows();
+}
+
+async function listView() {
+  const kind = KIND[tab];
+  await loadLib();
+  if (tab !== { live: "live", movie: "movies", series: "series" }[kind]) return;
+  const all = LIB[kind];
+  if (!all.length) { $("#view").innerHTML = `<section class="card empty"><h2>${t(tab)}</h2><p>${t("noData")}</p><button class="btn pri" data-go="sources">${t("manage")}</button></section>`; return; }
+  const cnt = new Map(); for (const r of all) cnt.set(r.group || "", (cnt.get(r.group || "") || 0) + 1);
+  const opts = [...cnt].sort((a, b) => a[0].localeCompare(b[0])).map(([g, n]) => `<option value="${esc(g)}" ${g === V.group ? "selected" : ""}>${esc(g || "—")} (${n})</option>`).join("");
+  $("#view").innerHTML = `<h2>${t(tab)} <span class="mut">${all.length}</span></h2><div class="bar"><select id="v-group" aria-label="${t("group")}">
+    <option value="">${t("all")}</option><option value="__fav" ${V.group === "__fav" ? "selected" : ""}>★ ${t("favs")}</option>${opts}</select></div><div id="list"></div>`;
+  filterRows(kind);
+}
+
 function contentView() {
-  const list = Sources.all().filter(s => s.type !== "epg");
-  if (!list.length) return emptyState();
-  const n = list.reduce((a, s) => a + (s.count || 0), 0);
-  return `<section class="card"><h2>${t(tab)}</h2><p class="mut">${list.length} ${t("sources")}${n ? " · " + n + " " + t("channels") : ""}</p>
-  <p class="mut">${t("soon")}</p><button class="btn" data-go="sources">${t("manage")}</button></section>`;
+  if (!Sources.all().some(s => s.type !== "epg")) return emptyState();
+  if (tab === "home") {
+    const rec = Store.get("recent", []); V.rows = rec;
+    const n = Sources.all().reduce((a, s) => a + (s.count || 0), 0);
+    queueMicrotask(() => { const b = $("#list"); if (b) b.innerHTML = rec.map(rowHtml).join(""); });
+    return `<section class="card"><p class="mut">${Sources.all().length} ${t("sources")}${n ? " · " + n : ""}</p><button class="btn" data-go="sources">${t("manage")}</button></section>
+      ${rec.length ? `<h2>${t("continueW")}</h2><div id="list"></div>` : ""}`;
+  }
+  listView(); return `<p class="mut empty">…</p>`;
+}
+
+async function play(it) {
+  const P = window.Capacitor && window.Capacitor.registerPlugin ? window.Capacitor.registerPlugin("MesutPlayer") : null;
+  if (!P) return toast(t("noPlayer"));
+  const rec = Store.get("recent", []), prev = rec.find(r => r.url === it.url);
+  try {
+    const r = await P.play({ url: it.url, title: it.name, startMs: it.t !== "live" && prev ? prev.pos || 0 : 0 });
+    const done = r.durationMs > 0 && r.positionMs > r.durationMs * 0.95;
+    const entry = { name: it.name, logo: it.logo, group: it.group, url: it.url, t: it.t, pos: it.t === "live" || done ? 0 : r.positionMs || 0 };
+    Store.set("recent", [entry, ...rec.filter(x => x.url !== it.url)].slice(0, 20));
+  } catch (e) { toast(t("playErr")); }
 }
 
 function sourcesView() {
@@ -78,7 +140,7 @@ function render() {
   $("#view").innerHTML = v();
 }
 
-function go(name) { tab = name; if (name !== "form") editing = null; render(); $("#view").focus({ preventScroll: true }); window.scrollTo(0, 0); }
+function go(name) { tab = name; V.group = ""; V.n = 100; if (name !== "form") editing = null; render(); $("#view").focus({ preventScroll: true }); window.scrollTo(0, 0); }
 
 async function saveForm() {
   const g = id => ($(id) ? $(id).value.trim() : "");
@@ -90,7 +152,7 @@ async function saveForm() {
     if (s.type === "epg" && !s.url) return toast(t("invalid"));
     if (s.url && !validUrl(s.url)) return toast(t("badUrl"));
     if (s.type === "m3u") {
-      if (file) { try { const txt = await file.text(); const n = parseM3U(txt).length; if (!n || !Store.set("m3u:" + s.id, txt)) throw 0; s.url = ""; s.count = n; s.updated = Date.now(); toast(t("fileLoaded")); } catch (e) { return toast(t("fileRead")); } }
+      if (file) { try { const items = parseM3U(await file.text()); if (!items.length) throw 0; await DB.put("ch:" + s.id, items); s.url = ""; s.count = items.length; s.updated = Date.now(); toast(t("fileLoaded")); } catch (e) { return toast(t("fileRead")); } }
       else if (!s.url && !editing) return toast(t("invalid"));
     }
   }
@@ -99,10 +161,15 @@ async function saveForm() {
 }
 
 document.addEventListener("click", async e => {
+  const star = e.target.closest("[data-fav]");
+  if (star) { const it = V.rows[+star.dataset.fav]; if (it) { favs.has(it.url) ? favs.delete(it.url) : favs.add(it.url); Store.set("favs", [...favs]); if (V.group === "__fav") filterRows(KIND[tab]); else paintRows(); } return; }
+  const row = e.target.closest(".ch");
+  if (row && !e.target.closest("[data-act],[data-tab],[data-go]")) { const it = V.rows[+row.dataset.i]; if (it) play(it); return; }
   const el = e.target.closest("[data-tab],[data-go],[data-act]"); if (!el) return;
   if (el.dataset.tab) return go(el.dataset.tab);
   if (el.dataset.go) return go(el.dataset.go);
   const act = el.dataset.act, id = el.dataset.id, src = Sources.all().find(s => s.id === id);
+  if (act === "more") { V.n += 100; paintRows(); return; }
   if (act === "new") { editing = null; formType = "xtream"; go("form"); }
   else if (act === "edit" && src) { editing = src; formType = src.type; go("form"); }
   else if (act === "save") saveForm();
@@ -113,10 +180,12 @@ document.addEventListener("click", async e => {
     catch (err) { toast(t("invalid") + " (" + (err.message || "error") + ")"); }
     render();
   }
-  else if (act === "cache") { Sources.all().forEach(s => { if (s.type === "m3u" && s.url) Store.del("m3u:" + s.id); }); toast(t("cacheDone")); }
+  else if (act === "cache") { Store.del("recent"); LIB = null; toast(t("cacheDone")); }
 });
 
+$("#q").addEventListener("input", e => { if (KIND[tab]) { V.q = e.target.value.trim(); V.n = 100; if (LIB) filterRows(KIND[tab]); } });
 document.addEventListener("change", e => {
+  if (e.target.id === "v-group") { V.group = e.target.value; V.n = 100; filterRows(KIND[tab]); }
   if (e.target.id === "s-lang") { lang = e.target.value; Store.set("lang", lang); render(); }
   if (e.target.id === "s-theme") { theme = e.target.value; Store.set("theme", theme); render(); }
   if (e.target.id === "f-type") { formType = e.target.value; const keep = $("#f-name").value; render(); $("#f-name").value = keep; }
