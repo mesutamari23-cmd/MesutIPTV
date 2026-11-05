@@ -1,0 +1,20 @@
+{
+  "name": "mesut-iptv",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mesut IPTV - lecteur IPTV (Xtream Codes / M3U / EPG)",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/splash-screen": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.0.0"
+  }
+}
