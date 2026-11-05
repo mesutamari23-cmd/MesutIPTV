@@ -85,7 +85,8 @@ function contentView() {
 }
 
 async function play(it) {
-  const P = window.Capacitor && window.Capacitor.registerPlugin ? window.Capacitor.registerPlugin("MesutPlayer") : null;
+  const C = window.Capacitor;
+  const P = !C ? null : (C.Plugins && C.Plugins.MesutPlayer) || (C.nativePromise ? { play: o => C.nativePromise("MesutPlayer", "play", o) } : (C.registerPlugin ? C.registerPlugin("MesutPlayer") : null));
   if (!P) return toast(t("noPlayer"));
   const rec = Store.get("recent", []), prev = rec.find(r => r.url === it.url);
   try {
@@ -93,7 +94,7 @@ async function play(it) {
     const done = r.durationMs > 0 && r.positionMs > r.durationMs * 0.95;
     const entry = { name: it.name, logo: it.logo, group: it.group, url: it.url, t: it.t, pos: it.t === "live" || done ? 0 : r.positionMs || 0 };
     Store.set("recent", [entry, ...rec.filter(x => x.url !== it.url)].slice(0, 20));
-  } catch (e) { toast(t("playErr")); }
+  } catch (e) { toast(t("playErr") + " (" + ((e && (e.message || e.code)) || e) + ")"); }
 }
 
 function sourcesView() {
