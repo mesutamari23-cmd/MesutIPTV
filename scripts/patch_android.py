@@ -31,5 +31,30 @@ if "LEANBACK_LAUNCHER" not in m:
     )
 if "WAKE_LOCK" not in m:
     m = m.replace("</manifest>", '    <uses-permission android:name="android.permission.WAKE_LOCK" />\n</manifest>')
+if "PlayerActivity" not in m:
+    act = (
+        '        <activity android:name=".PlayerActivity" android:exported="false"\n'
+        '            android:screenOrientation="sensorLandscape"\n'
+        '            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode"\n'
+        '            android:theme="@style/AppTheme.NoActionBar" />\n'
+    )
+    m = m.replace("</application>", act + "    </application>", 1)
 man.write_text(m)
-print("AndroidManifest + variables.gradle patchés")
+
+# Lecteur natif Media3 : dépendances + sources Java
+import shutil
+gradle = root / "app/build.gradle"
+g = gradle.read_text()
+if "media3-exoplayer" not in g:
+    deps = ("dependencies {\n"
+            '    implementation "androidx.media3:media3-exoplayer:1.5.1"\n'
+            '    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n'
+            '    implementation "androidx.media3:media3-ui:1.5.1"\n'
+            '    implementation "androidx.media3:media3-datasource:1.5.1"\n')
+    g = g.replace("dependencies {\n", deps, 1)
+    gradle.write_text(g)
+dest = root / "app/src/main/java/com/mesut/iptv"
+dest.mkdir(parents=True, exist_ok=True)
+for f in pathlib.Path("native/java/com/mesut/iptv").glob("*.java"):
+    shutil.copy(f, dest / f.name)
+print("AndroidManifest + variables.gradle + lecteur Media3 patchés")
